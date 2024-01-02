@@ -7,17 +7,20 @@ import re
 # El resto se imprimen por pantalla
 # Autores : Felix Garcia Narocki con ayuda de chatGPT
 
-# Aqui se escribe el input en formato humano(examen), jflap, parsing o calgary
+# Aqui se escribe el input en formato latex(examen), jflap, parsing o calgary
 input_string = """
-S → a A B b
-A → a A c
-A → λ
-B → b B
-B → c
+A -> B
+  | C u
+  | v C
+  | v B u.
+B -> D.
+C -> D.
+D -> x D
+  | .
 """  
 # Tipo de traduccion
-translation_type = "human_to_calgary" # USO : {input_format}_to_{output_format}
-# human, calgary, parsing, jflap
+translation_type = "calgary_to_latex" # USO : {input_format}_to_{output_format}
+# latex, calgary, parsing, jflap
 
 def grammar_format_translator(input_string, translation_type):
     """
@@ -26,7 +29,7 @@ def grammar_format_translator(input_string, translation_type):
     input_string (str): The grammar in the original format.
     translation_type (str): The type of translation to perform. Options are:
                             'parsing_to_jflap', 'jflap_to_calgary', 'calgary_to_parsing',
-                            'parsing_to_calgary', 'humano_to_calgary', 'humano_to_parsing'.
+                            'parsing_to_calgary', 'latexo_to_calgary', 'latex_to_parsing'.
     """
     
     # To Calgary
@@ -34,13 +37,13 @@ def grammar_format_translator(input_string, translation_type):
         return jflap_to_calgary(input_string)
     elif translation_type == 'parsing_to_calgary':
         return parsing_to_calgary(input_string)
-    elif translation_type == 'human_to_calgary':
-        tmpParsingTraduction = human_to_parsing(input_string)
+    elif translation_type == 'latex_to_calgary':
+        tmpParsingTraduction = latex_to_parsing(input_string)
         return parsing_to_calgary(tmpParsingTraduction)
 
     # To Parsing
-    elif translation_type == 'human_to_parsing':
-        return human_to_parsing(input_string)
+    elif translation_type == 'latex_to_parsing':
+        return latex_to_parsing(input_string)
     elif translation_type == 'calgary_to_parsing':
         return calgary_to_parsing(input_string)
     elif translation_type == 'jflap_to_parsing':
@@ -50,12 +53,23 @@ def grammar_format_translator(input_string, translation_type):
     # To JFLAP    
     elif translation_type == 'parsing_to_jflap':
         return parsing_to_jflap(input_string)
-    elif translation_type == 'human_to_jflap':
-        tmpParsingTraduction = human_to_parsing(input_string)
+    elif translation_type == 'latex_to_jflap':
+        tmpParsingTraduction = latex_to_parsing(input_string)
         return parsing_to_jflap(tmpParsingTraduction)
     elif translation_type == 'calgary_to_jflap':
-        tmpParsingTraduction = human_to_parsing(input_string)
+        tmpParsingTraduction = latex_to_parsing(input_string)
         return parsing_to_jflap(tmpParsingTraduction)
+
+    # To LaTeX
+    elif translation_type == 'calgary_to_latex':
+        return calgary_to_latex(input_string)
+    elif translation_type == 'parsing_to_latex':
+        tmpCalgaryTraduction = parsing_to_calgary(input_string)
+        return calgary_to_latex(tmpCalgaryTraduction)
+    elif translation_type == 'jflap_to_latex':
+        tmpCalgaryTraduction = jflap_to_calgary(input_string)
+        return calgary_to_latex(tmpCalgaryTraduction)
+
     else:
         return "Invalid translation type."
 
@@ -174,11 +188,11 @@ def parsing_to_calgary(parsing_grammar):
     calgary_grammar += '.'  # Add final period
     return calgary_grammar.strip()
 
-def human_to_calgary(human_grammar):
+def latex_to_calgary(latex_grammar):
     """
-    Converts a grammar from Human format to Calgary format.
+    Converts a grammar from latex format to Calgary format.
     """
-    lines = human_grammar.strip().split('\n')  # Elimina líneas vacías al principio y final
+    lines = latex_grammar.strip().split('\n')  # Elimina líneas vacías al principio y final
     calgary_grammar = ""
     for line in lines:
         if '→' in line:
@@ -187,11 +201,11 @@ def human_to_calgary(human_grammar):
         calgary_grammar += line + '\n'
     return calgary_grammar.strip()
 
-def human_to_parsing(human_grammar):
+def latex_to_parsing(latex_grammar):
     """
-    Converts a grammar from Human format to Parsing format.
+    Converts a grammar from latex format to Parsing format.
     """
-    lines = human_grammar.strip().split('\n')  # Elimina líneas vacías al principio y final
+    lines = latex_grammar.strip().split('\n')  # Elimina líneas vacías al principio y final
     first_nonterminal = lines[0].split('→')[0].strip()  # Identify the first nonterminal
     parsing_grammar = f"I->{first_nonterminal}\n"  # Set the first nonterminal as the target of 'I'
     for line in lines:
@@ -199,12 +213,36 @@ def human_to_parsing(human_grammar):
             head, productions = line.split('→')
             for production in productions.split('|'):
                 # Manejando 'ε' como producción vacía en Parsing
-                production = production.strip().replace('ε', 'e')
+                production = production.strip().replace('ε', 'e').replace('λ', 'e')
                 # Eliminar espacios entre símbolos de producción
                 production = ''.join(production.split())
                 parsing_production = head.strip() + '->' + production
                 parsing_grammar += parsing_production + '\n'
     return parsing_grammar.strip()
+
+def calgary_to_latex(calgary_grammar):
+    """
+    Converts a grammar from Calgary format to LaTeX format.
+    """
+    lines = calgary_grammar.strip().split('\n')
+    latex_grammar = "\\[\n\\begin{cases} \n"
+    current_head = ""
+    production = ""
+
+    for line in lines:
+        if '->' in line:
+            current_head, production = line.split('->')
+            current_head = current_head.strip()
+        elif '|' in line:
+            _, production = line.split('|')
+
+        production = production.strip().replace('.', '')
+        if production == '':
+            production = 'ε'
+        latex_grammar += f"\\text{{{current_head}}} \\quad \\xrightarrow{{}} \\quad \\text{{{production}}} \\\\ \n"
+    latex_grammar += "\\end{cases}\n\\]"
+    return latex_grammar
+
 
 output_string = grammar_format_translator(input_string, translation_type)
 
