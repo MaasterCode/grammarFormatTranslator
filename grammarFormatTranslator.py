@@ -9,17 +9,16 @@ import re
 
 # Aqui se escribe el input en formato latex(examen), jflap, parsing o calgary
 input_string = """
-A -> B
-  | C u
-  | v C
-  | v B u.
-B -> D.
-C -> D.
-D -> x D
-  | .
+S → a X
+S → a
+X → b S
+X → b Y b Y
+Y → b a
+Y → a Z
+Z → a Z X
 """  
 # Tipo de traduccion
-translation_type = "calgary_to_latex" # USO : {input_format}_to_{output_format}
+translation_type = "latex_to_jflap" # USO : {input_format}_to_{output_format}
 # latex, calgary, parsing, jflap
 
 def grammar_format_translator(input_string, translation_type):
@@ -57,7 +56,7 @@ def grammar_format_translator(input_string, translation_type):
         tmpParsingTraduction = latex_to_parsing(input_string)
         return parsing_to_jflap(tmpParsingTraduction)
     elif translation_type == 'calgary_to_jflap':
-        tmpParsingTraduction = latex_to_parsing(input_string)
+        tmpParsingTraduction = calgary_to_parsing(input_string)
         return parsing_to_jflap(tmpParsingTraduction)
 
     # To LaTeX
@@ -84,9 +83,9 @@ def parsing_to_jflap(parsing_grammar):
     productions = parsing_grammar.strip().split('\n')
     for prod in productions:
         if '->' in prod:
-            left, right = prod.split('->')
-            if 'I' in left:
+            if 'I' in prod:
                 continue
+            left, right = prod.split('->')
             production = ET.SubElement(structure, 'production')
             # Manejar la cadena vacía
             ET.SubElement(production, 'left').text = left.strip()
@@ -144,21 +143,27 @@ def calgary_to_parsing(calgary_grammar):
     """
     Converts a grammar from Calgary format to Parsing format.
     """
-    lines = calgary_grammar.split('\n')
+    lines = calgary_grammar.strip().split('\n')
     first_nonterminal = lines[0].split('->')[0].strip()  # Identify the first nonterminal
     parsing_grammar = f"I->{first_nonterminal}\n"  # Set the first nonterminal as the target of 'I'
+    current_head = ""
+
     for line in lines:
+        line = line.strip()
         if '->' in line:
             head, productions = line.split('->')
-            for production in productions.split('|'):
-                # Removing spaces from the production and handling empty production
-                production = production.strip()
-                if production == '.':
-                    parsing_production = head.strip() + '->e'  # Replace empty production with 'e'
-                else:
-                    parsing_production = head.strip() + '->' + ''.join(production.split())
-                parsing_production = parsing_production.replace(".", "")
-                parsing_grammar += parsing_production + '\n'
+            current_head = head.strip()
+        elif '|' in line:
+            productions = line.split('|')[1]  # Take the part after '|'
+
+        for production in productions.split('|'):
+            # Removing spaces from the production and handling empty production
+            production = production.strip().replace(".", "")
+            if not production:
+                production = 'e'  # Replace empty production with 'e'
+            parsing_production = current_head + '->' + ''.join(production.split())
+            parsing_grammar += parsing_production + '\n'
+
     return parsing_grammar.strip()
 
 def parsing_to_calgary(parsing_grammar):
